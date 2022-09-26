@@ -1,37 +1,10 @@
-from metabase_api import Metabase_API
-import json
+from functions import *
 
 # Input variables
 original_dashboard_id = 27
 copy_collection_id = 70
 copy_dashboard_name = 'Prod - Decision Engine Performance'
 copy_database_id = 7
-
-
-# Finds the index of a list of dictionary, based on a value in the dictionaries
-def find(lst, key, value):
-    for i, dic in enumerate(lst):
-        if dic[key] == value:
-            return i
-    return -1
-
-
-# TODO have one find functions, that can handle 1 or more keys value pairs
-def find3(lst, key1, value1, key2, value2, key3, value3):
-    for i, dic in enumerate(lst):
-        if (dic[key1] == value1) & (dic[key2] == value2) & (dic[key3] == value3):
-            return i
-    return -1
-
-
-# Check if chart uses a field filter
-def check_field_filter_present(chart_json):
-    try:
-        x = chart_json['dataset_query']['native']['template-tags']['Date']['dimension']
-        return True
-    except KeyError:
-        return False
-
 
 # Find dashboard id from dashboard name
 def find_dashboard_id(dashboard_name):
@@ -52,17 +25,10 @@ def dashboard_card_ids(dashboard_name):
     return card_ids
 
 
-# Load secrets
-with open('../../secrets/Config.json', 'r') as f:
-    config = json.load(f)
-url = config['Metabase']['url']
-user = config['Metabase']['username']
-password = config['Metabase']['password']
+secrets_path = '../../secrets/Config.json'
 
-# Setup connection
-mb = Metabase_API(url, user, password)
-# Add context type to header, required for put requests
-mb.header.update({'content-type': 'application/json'})
+# Establish connection to Metabase
+mb = metabase_connection(secrets_path)
 
 # Archive previously copied dashboard, charts, and collection containing copied charts if they exist
 print('Checking for dashboard/collection to archive')
@@ -118,8 +84,7 @@ for card_id in copy_card_ids:
         copy_db_fields = mb.get(f'/api/database/{copy_database_id}/fields')
         copy_field_filter_id = \
             copy_db_fields[
-                find3(copy_db_fields, 'table_name', field_table, 'schema', field_scheme, 'name', field_column)][
-                'id']
+                find3(copy_db_fields, 'table_name', field_table, 'schema', field_scheme, 'name', field_column)]['id']
 
     # Modify chart json with new database and update field filter ids
     chart_json['database_id'] = copy_database_id
