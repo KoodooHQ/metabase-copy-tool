@@ -26,17 +26,36 @@ def check_field_filter_present(chart_json):
     except KeyError:
         return False
 
-#
+
+# Find dashboard id from dashboard name
+def find_dashboard_id(dashboard_name):
+    # mb.search performs a fuzzy search and returns a list of all matches, after we select the exact dashboard
+    fuzzy_dashboard_search = mb.search(q=dashboard_name, item_type='dashboard')
+    dashboard_details = fuzzy_dashboard_search[find(fuzzy_dashboard_search, 'name', dashboard_name)]
+    dashboard_id = dashboard_details['id']
+
+    return dashboard_id
+
+
+# Returns list of cards in dashboard
+def dashboard_card_ids(dashboard_name):
+    dashboard_id = find_dashboard_id(dashboard_name)
+    dashboard_get = mb.get(f'/api/dashboard/{dashboard_id}')
+    card_ids = [i['card_id'] for i in dashboard_get['ordered_cards'] if i['card_id'] is not None]
+
+    return card_ids
+
+
+# Load secrets
 with open('../../secrets/Config.json', 'r') as f:
     config = json.load(f)
-
 url = config['Metabase']['url']
 user = config['Metabase']['username']
 password = config['Metabase']['password']
 
 # Setup connection
 mb = Metabase_API(url, user, password)
-# Add context type to header
+# Add context type to header, required for put requests
 mb.header.update({'content-type': 'application/json'})
 
 # Input variables
@@ -50,19 +69,12 @@ copy_database_id = 7
 
 # Copy original dashboard and charts
 print('Starting dashboard copy')
-mb.copy_dashboard(source_dashboard_id=original_dashboard_id, destination_collection_id=copy_collection_id,
-                  destination_dashboard_name=copy_dashboard_name, deepcopy=True)
+# mb.copy_dashboard(source_dashboard_id=original_dashboard_id, destination_collection_id=copy_collection_id,
+#                   destination_dashboard_name=copy_dashboard_name, deepcopy=True)
 print('Finished dashboard copy')
 
-# Find the ID of the dashboard copy we have just made
-# mb.search performs a fuzzy search and returns a list of all matches, after we select the exact dashboard
-copy_search = mb.search(q=copy_dashboard_name, item_type='dashboard')
-copy_dashboard_data = copy_search[find(copy_search, 'name', copy_dashboard_name)]
-copy_dashboard_data_id = copy_dashboard_data['id']
-
-# Create list of chart ids in our copied dashboard
-copy_dashboard_get = mb.get(f'/api/dashboard/{copy_dashboard_data_id}')
-copy_card_ids = [i['card_id'] for i in copy_dashboard_get['ordered_cards'] if i['card_id'] is not None]
+# Create list of chart ids from our copied dashboard
+copy_card_ids = dashboard_card_ids(copy_dashboard_name)
 
 # Update database and field filters for each chart
 print('Repointing dashboard charts to new database')
