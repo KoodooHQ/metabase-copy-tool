@@ -1,6 +1,12 @@
 from metabase_api import Metabase_API
 import json
 
+# Input variables
+original_dashboard_id = 27
+copy_collection_id = 70
+copy_dashboard_name = 'Prod - Decision Engine Performance'
+copy_database_id = 7
+
 
 # Finds the index of a list of dictionary, based on a value in the dictionaries
 def find(lst, key, value):
@@ -58,28 +64,35 @@ mb = Metabase_API(url, user, password)
 # Add context type to header, required for put requests
 mb.header.update({'content-type': 'application/json'})
 
-# Input variables
-original_dashboard_id = 27
-copy_collection_id = 70
-copy_dashboard_name = 'Prod - Decision Engine Performance'
-copy_database_id = 7
-
-# TODO Archive previous copy dashboard, charts, and collection for copy charts
-
+# Archive previously copied dashboard, charts, and collection containing copied charts if they exist
+print('Checking for dashboard/collection to archive')
+try:
+    # Find ids of dashboard and folder inside copy collection
+    previous_copy_collection_get = mb.get(f'/api/collection/{copy_collection_id}/items')['data']
+    previous_copy_dashboard_id = \
+        previous_copy_collection_get[find(previous_copy_collection_get, 'model', 'dashboard')]['id']
+    previous_copy_chart_folder_id = \
+        previous_copy_collection_get[find(previous_copy_collection_get, 'model', 'collection')]['id']
+    # Archive ids
+    mb.move_to_archive('dashboard', item_id=previous_copy_dashboard_id)
+    mb.move_to_archive('collection', item_id=previous_copy_chart_folder_id)  # Will also archive all charts inside
+    print('Archive process successful')
+except:
+    print('No dashboard/collection found to be archived')
 
 # Copy original dashboard and charts
 print('Starting dashboard copy')
-# mb.copy_dashboard(source_dashboard_id=original_dashboard_id, destination_collection_id=copy_collection_id,
-#                   destination_dashboard_name=copy_dashboard_name, deepcopy=True)
+mb.copy_dashboard(source_dashboard_id=original_dashboard_id, destination_collection_id=copy_collection_id,
+                  destination_dashboard_name=copy_dashboard_name, deepcopy=True)
 print('Finished dashboard copy')
 
-# Create list of chart ids from our copied dashboard
+# Create list of chart ids from the copied dashboard
 copy_card_ids = dashboard_card_ids(copy_dashboard_name)
 
 # Update database and field filters for each chart
 print('Repointing dashboard charts to new database')
 for card_id in copy_card_ids:
-    print(f'Updating chart {copy_card_ids.index(card_id)+1} of {len(copy_card_ids)}')
+    print(f'Updating chart {copy_card_ids.index(card_id) + 1} of {len(copy_card_ids)}')
 
     # Get chart json structure
     chart_json = mb.get(f'/api/card/{card_id}')
@@ -103,7 +116,10 @@ for card_id in copy_card_ids:
 
         # Find the id of the field filter in the new database
         copy_db_fields = mb.get(f'/api/database/{copy_database_id}/fields')
-        copy_field_filter_id = copy_db_fields[find3(copy_db_fields, 'table_name', field_table, 'schema', field_scheme, 'name', field_column)]['id']
+        copy_field_filter_id = \
+            copy_db_fields[
+                find3(copy_db_fields, 'table_name', field_table, 'schema', field_scheme, 'name', field_column)][
+                'id']
 
     # Modify chart json with new database and update field filter ids
     chart_json['database_id'] = copy_database_id
