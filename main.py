@@ -1,11 +1,13 @@
 from metabase_functions import *
 
-# Input variables
-original_dashboard_id = 27
-copy_collection_id = 70
-copy_dashboard_name = 'Prod - Decision Engine Performance'
-copy_database_id = 7
-secrets_path = '../../secrets/Config.json'
+# Load variables from config
+with open('config.json', 'r') as f:
+    config = json.load(f)
+original_dashboard_id = config['original_dashboard_id']
+copy_collection_id = config['copy_collection_id']
+copy_dashboard_name = config['copy_dashboard_name']
+copy_database_id = config['copy_database_id']
+secrets_path = config['secrets_path']
 
 # Establish connection to Metabase
 metabase_connection = get_metabase_connection(secrets_path)

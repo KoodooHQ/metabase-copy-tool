@@ -1,0 +1,7 @@
+{
+  "original_dashboard_id": 27,
+  "copy_collection_id": 70,
+  "copy_dashboard_name": "Prod - Decision Engine Performance",
+  "copy_database_id": 7,
+  "secrets_path": "../../secrets/Config.json"
+}
